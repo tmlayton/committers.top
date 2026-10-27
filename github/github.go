@@ -170,10 +170,16 @@ Pages:
 		}
 		q := fmt.Sprintf("%s%s sort:%s-%s", query.Q, followerCountQueryStr, query.Sort, query.Order)
 
+		fields := userFields
+		if query.Days > 0 {
+			from := time.Now().UTC().AddDate(0, 0, -query.Days).Format(time.RFC3339)
+			fields = strings.Replace(userFields, "contributionsCollection {", fmt.Sprintf(`contributionsCollection(from: "%s") {`, from), 1)
+		}
+
 		perPage := defaultPerPage
 		pageFailures := 0
 		for consumed := 0; consumed < maxPerQuery; {
-			edgeNodes, userCount, err := client.searchPage(q, perPage, previousCursor, userFields)
+			edgeNodes, userCount, err := client.searchPage(q, perPage, previousCursor, fields)
 			if err != nil {
 				retryCount++
 				if retryCount >= maxRetryCount {
@@ -344,6 +350,7 @@ type UserSearchQuery struct {
 	Sort     string
 	Order    string
 	MaxUsers int
+	Days     int // 0 = GitHub default (one year)
 }
 
 type GithubSearchResults struct {

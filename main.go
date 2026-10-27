@@ -31,6 +31,7 @@ func main() {
 	token := flag.String("token", LookupEnvOrString("GITHUB_TOKEN", ""), "Github auth token")
 	amount := flag.Int("amount", 256, "Amount of users to show")
 	considerNum := flag.Int("consider", 1000, "Amount of users to consider")
+	days := flag.Int("days", 0, "Count contributions over the last N days (max 365; 0 means the API default of one year)")
 	outputOpt := flag.String("output", "plain", "Output format: plain, csv")
 	fileName := flag.String("file", "", "Output file (optional, defaults to stdout)")
 	presetName := flag.String("preset", "", "Preset (optional)")
@@ -67,7 +68,7 @@ func main() {
 		log.Fatal("Unrecognized output format: ", *outputOpt)
 	}
 
-	opts := top.Options{Token: *token, Locations: locations, ExcludeLocations: excludeLocations, Amount: *amount, ConsiderNum: *considerNum, PresetTitle: presetTitle, PresetChecksum: presetChecksum}
+	opts := top.Options{Token: *token, Locations: locations, ExcludeLocations: excludeLocations, Amount: *amount, ConsiderNum: *considerNum, Days: *days, PresetTitle: presetTitle, PresetChecksum: presetChecksum}
 	data, err := top.GithubTop(opts)
 
 	if err != nil {
