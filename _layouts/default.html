@@ -60,7 +60,7 @@
         {% if location %}
           <h1>Most active GitHub users in {{location.title}}</h1>
           <p>
-            This is a list of most active GitHub users in {{location.title}} over the past year. Other countries/regions can be found <a href=".">here</a>.
+            This is a list of most active GitHub users in {{location.title}} over the past {% if page.period == "182d" %}6 months{% elsif page.period == "90d" %}90 days{% else %}year{% endif %}. Other countries/regions can be found <a href=".">here</a>.
             This list was generated at <code>{{location.generated}}</code> and machine-readable JSON is available for:
             <ul>
               <li><a href="rank_only/{{page.location}}.json">rank-only with categories</a></li>
@@ -100,6 +100,19 @@
               <li {% if page.mode == "all" %} class="active"{% endif %}><a href="{{page.location}}_private">All</a></li>
             </ul>
           </p>
+          {% comment %}fork-only: period selector{% endcomment %}
+          {% assign base = page.base | default: page.location %}
+          {% assign mode_suffix = "" %}{% if page.mode == "contributions" %}{% assign mode_suffix = "_public" %}{% elsif page.mode == "all" %}{% assign mode_suffix = "_private" %}{% endif %}
+          {% assign key_6m = base | append: "_182d" %}{% assign key_90d = base | append: "_90d" %}
+          {% if site.data.locations[key_6m] or site.data.locations[key_90d] %}
+          <p>
+            <ul class="mode-selector">
+              <li {% unless page.period %} class="active"{% endunless %}><a href="{{base}}{{mode_suffix}}">1 year</a></li>
+              {% if site.data.locations[key_6m] %}<li {% if page.period == "182d" %} class="active"{% endif %}><a href="{{key_6m}}{{mode_suffix}}">6 months</a></li>{% endif %}
+              {% if site.data.locations[key_90d] %}<li {% if page.period == "90d" %} class="active"{% endif %}><a href="{{key_90d}}{{mode_suffix}}">90 days</a></li>{% endif %}
+            </ul>
+          </p>
+          {% endif %}
           <table class="users-list">
             <thead>
               <tr>
