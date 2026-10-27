@@ -1,5 +1,9 @@
 on:
   workflow_dispatch:
+    inputs:
+      only:
+        description: 'Fork-only verification: process just this location file name (e.g. united_states)'
+        required: false
   schedule:
     - cron: '45 * * * *'
 
@@ -26,6 +30,7 @@ jobs:
         shell: python
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ONLY: ${{ github.event.inputs.only }}
         run: |
           import csv, datetime, glob, os, random, re, subprocess, sys
 
@@ -86,6 +91,8 @@ jobs:
           if regenerated:
             subprocess.run('git add *.md _data/locations/*.yml rank_only/*.json && git commit -am "regenerate location pages"', shell=True, check=True)
 
+          if os.environ.get("ONLY"):
+            to_process = [os.environ["ONLY"]]
           random.shuffle(to_process) # in case we're getting failures for a specific preset, this should let others move forward
           for key in to_process[0:MAX_IN_RUN]:
             print("Running: %s" % key)
