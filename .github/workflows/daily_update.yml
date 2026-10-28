@@ -1,9 +1,18 @@
 on:
   workflow_dispatch:
+    inputs:
+      only:
+        description: 'Fork-only verification: process just this location file name (e.g. united_states)'
+        required: false
+      days:
+        description: 'Fork-only: count contributions over the last N days (writes <location>_<N>d pages)'
+        required: false
   schedule:
     - cron: '45 * * * *'
 
 name: daily update
+permissions:
+  contents: write  # fork-only: this fork's default workflow token is read-only
 jobs:
   daily_update:
     runs-on: ubuntu-24.04
@@ -26,10 +35,30 @@ jobs:
         shell: python
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ONLY: ${{ github.event.inputs.only }}
+          DAYS: ${{ github.event.inputs.days }}
         run: |
           import csv, datetime, glob, os, random, re, subprocess, sys
 
           MAX_IN_RUN = 3
+
+          # Fork-only: a period run writes <location>_<N>d data and pages, then stops
+          # before the cleanup below (which would delete those extra files).
+          if os.environ.get("ONLY") and os.environ.get("DAYS"):
+            base, days = os.environ["ONLY"], os.environ["DAYS"]
+            key = "%s_%sd" % (base, days)
+            status = subprocess.run(["most-active-github-users-counter", "--token", os.environ["GITHUB_TOKEN"], "--preset", base.replace("_", " "), "--output", "yaml", "--days", days], capture_output=True, text=True)
+            print("--- generator stderr ---\n%s" % status.stderr)
+            if status.returncode != 0:
+              sys.exit(1)
+            with open("_data/locations/%s.yml" % key, "w") as f:
+              f.write("page: %s.html\n%s" % (key, status.stdout))
+            for suffix, mode in [("", "commits"), ("_private", "all"), ("_public", "contributions")]:
+              with open("%s%s.md" % (key, suffix), "w") as f:
+                f.write("---\ntype: location\nlocation: %s\nmode: %s\nbase: %s\nperiod: %sd\n---\n" % (key, mode, base, days))
+            subprocess.run('git add -A _data/locations %s*.md && git commit -m "%s: %s-day updates for %s"' % (key, base, days, datetime.date.today().isoformat()), shell=True, check=True)
+            subprocess.run("git push origin gh-pages", shell=True, check=True)
+            sys.exit(0)
           STALE_DAYS = 5
           GENERATED  = {
             "%s.md":                "---\ntype: location\nlocation: %s\nmode: commits\n---\n",
@@ -86,12 +115,15 @@ jobs:
           if regenerated:
             subprocess.run('git add *.md _data/locations/*.yml rank_only/*.json && git commit -am "regenerate location pages"', shell=True, check=True)
 
+          if os.environ.get("ONLY"):
+            to_process = [os.environ["ONLY"]]
           random.shuffle(to_process) # in case we're getting failures for a specific preset, this should let others move forward
           for key in to_process[0:MAX_IN_RUN]:
             print("Running: %s" % key)
             preset = flookup[key]
             status = subprocess.run(["most-active-github-users-counter", "--token", os.environ["GITHUB_TOKEN"], "--preset", preset, "--output", "yaml"], capture_output=True, text=True)
             if status.returncode == 0:
+              print("--- generator stderr ---\n%s" % status.stderr)
               with open("_data/locations/%s.yml" % key, "w") as f:
                 f.write("page: %s.html\n%s" % (key, status.stdout))
               subprocess.run('git add _data/locations/%s.yml && git commit -m "%s: updates for %s"' % (key, preset, today.isoformat()), shell=True, check=True)

@@ -24,7 +24,7 @@ func GithubTop(options Options) (github.GithubSearchResults, error) {
 	}
 
 	var client = github.NewGithubClient(net.TokenAuth(token))
-	users, err := client.SearchUsers(github.UserSearchQuery{Q: query, Sort: "followers", Order: "desc", MaxUsers: options.ConsiderNum})
+	users, err := client.SearchUsers(github.UserSearchQuery{Q: query, Sort: "followers", Order: "desc", MaxUsers: options.ConsiderNum, Days: options.Days})
 	if err != nil {
 		return github.GithubSearchResults{}, err
 	}
@@ -37,6 +37,7 @@ type Options struct {
 	ExcludeLocations []string
 	Amount           int
 	ConsiderNum      int
+	Days             int
 	PresetTitle      string
 	PresetChecksum   string
 }
